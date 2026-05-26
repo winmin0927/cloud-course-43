@@ -54,7 +54,7 @@ jobs:
 
     # ========== Step 5: 部署到 CCE ==========
     - name: Deploy to CCE via kubectl
-      uses: appleboy/kubernetes-action@v1
+      uses: appleboy/kubernetes-action@v1.0.0
       with:
         kubeconfig: ${{ secrets.KUBE_CONFIG }}
         namespace: default
