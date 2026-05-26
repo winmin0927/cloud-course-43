@@ -3,63 +3,61 @@ name: CI/CD Pipeline to Huawei CCE
 on:
   push:
     branches: [ main, master ]
-  workflow_dispatch:  # 允许手动触发
+  workflow_dispatch:
 
 env:
   REGION: ${{ secrets.SWR_REGION }}
   SWR_ORG: team43
-  BACKEND_IMAGE_NAME: backend
-  FRONTEND_IMAGE_NAME: frontend
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-    # ========== Step 1: 登录 SWR ==========
     - name: Login to Huawei SWR
       run: |
         docker login -u ${{ secrets.SWR_USERNAME }} -p ${{ secrets.SWR_PASSWORD }} \
           swr.${{ secrets.SWR_REGION }}.myhuaweicloud.com
 
-    # ========== Step 2: 构建并推送 Backend 镜像 ==========
-    - name: Build and push Backend image
+    - name: Build and push Backend
       uses: docker/build-push-action@v5
       with:
         context: ./backend
         file: ./backend/Dockerfile.backend
         push: true
         tags: |
-          swr.${{ secrets.SWR_REGION }}.myhuaweicloud.com/${{ env.SWR_ORG }}/${{ env.BACKEND_IMAGE_NAME }}:latest
-          swr.${{ secrets.SWR_REGION }}.myhuaweicloud.com/${{ env.SWR_ORG }}/${{ env.BACKEND_IMAGE_NAME }}:${{ github.sha }}
+          swr.${{ secrets.SWR_REGION }}.myhuaweicloud.com/${{ env.SWR_ORG }}/backend:latest
+          swr.${{ secrets.SWR_REGION }}.myhuaweicloud.com/${{ env.SWR_ORG }}/backend:${{ github.sha }}
 
-    # ========== Step 3: 构建并推送 Frontend 镜像 ==========
-    - name: Build and push Frontend image
+    - name: Build and push Frontend
       uses: docker/build-push-action@v5
       with:
         context: ./frontend
         file: ./frontend/Dockerfile.frontend
         push: true
         tags: |
-          swr.${{ secrets.SWR_REGION }}.myhuaweicloud.com/${{ env.SWR_ORG }}/${{ env.FRONTEND_IMAGE_NAME }}:latest
-          swr.${{ secrets.SWR_REGION }}.myhuaweicloud.com/${{ env.SWR_ORG }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ github.sha }}
+          swr.${{ secrets.SWR_REGION }}.myhuaweicloud.com/${{ env.SWR_ORG }}/frontend:latest
+          swr.${{ secrets.SWR_REGION }}.myhuaweicloud.com/${{ env.SWR_ORG }}/frontend:${{ github.sha }}
 
-    # ========== Step 4: 更新 Deployment 镜像 Tag ==========
     - name: Update image tag in deployment
       run: |
-        sed -i "s|image: .*/backend:.*|image: swr.${{ secrets.SWR_REGION }}.myhuaweicloud.com/${{ env.SWR_ORG }}/${{ env.BACKEND_IMAGE_NAME }}:${{ github.sha }}|" k8s/deployment.yaml
-        sed -i "s|image: .*/frontend:.*|image: swr.${{ secrets.SWR_REGION }}.myhuaweicloud.com/${{ env.SWR_ORG }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ github.sha }}|" k8s/deployment.yaml
+        sed -i "s|image: .*/backend:.*|image: swr.${{ secrets.SWR_REGION }}.myhuaweicloud.com/${{ env.SWR_ORG }}/backend:${{ github.sha }}|" k8s/deployment.yaml
+        sed -i "s|image: .*/frontend:.*|image: swr.${{ secrets.SWR_REGION }}.myhuaweicloud.com/${{ env.SWR_ORG }}/frontend:${{ github.sha }}|" k8s/deployment.yaml
 
-    # ========== Step 5: 部署到 CCE ==========
-    - name: Deploy to CCE via kubectl
-      uses: appleboy/kubernetes-action@v1.0.0
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v4
       with:
-        kubeconfig: ${{ secrets.KUBE_CONFIG }}
-        namespace: default
-        manifest: |
-          k8s/deployment.yaml
-          k8s/service.yaml
-          k8s/configmap.yaml
-        strategy: update
+        version: 'latest'
+
+    - name: Set kubeconfig
+      run: |
+        mkdir -p $HOME/.kube
+        echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
+
+    - name: Deploy to CCE
+      run: |
+        kubectl apply -f k8s/deployment.yaml
+        kubectl apply -f k8s/service.yaml
+        kubectl apply -f k8s/configmap.yaml
+        kubectl rollout restart deployment backend frontend || true
