@@ -44,6 +44,35 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  name: frontend
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: swr.cn-east-3.myhuaweicloud.com/team43/frontend:v1
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/conf.d/default.conf
+          subPath: default.conf
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: frontend-nginx-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
   name: redis
   namespace: default
 spec:
@@ -71,10 +100,10 @@ spec:
         resources:
           limits:
             memory: "512Mi"
-        volumeMounts:               # 这里必须在容器内
+        volumeMounts:
         - name: redis-data
           mountPath: /data
-      volumes:                      # 这里与 containers 同级
+      volumes:
       - name: redis-data
         persistentVolumeClaim:
           claimName: redis-data-pvc
