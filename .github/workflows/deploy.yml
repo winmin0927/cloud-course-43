@@ -2,7 +2,7 @@ name: CI/CD Pipeline to Huawei CCE
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
   workflow_dispatch:
 
 env:
