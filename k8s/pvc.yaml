@@ -1,0 +1,13 @@
+# ── PVC（申请 10Gi 华为云 EVS 云硬盘）──────────────────
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-data-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: csi-disk
+  resources:
+    requests:
+      storage: 10Gi
