@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mqtt-subscriber
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: subscriber
+  template:
+    metadata:
+      labels:
+        app: subscriber
+    spec:
+      containers:
+      - name: subscriber
+        image: swr.cn-east-3.myhuaweicloud.com/team43/mqtt-subscriber:v2
+        env:
+        - name: REDIS_HOST
+          value: "redis-svc"
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-secret
+              key: password
+        - name: MQTT_BROKER
+          value: "mosquitto-svc"
+        - name: MQTT_PORT
+          value: "1883"

@@ -1,0 +1,7 @@
+FROM python:3.9-slim
+
+RUN pip install -i https://pypi.tuna.tsinghua.edu.cn/simple --no-cache-dir paho-mqtt redis
+
+COPY subscriber.py /opt/subscriber.py
+
+CMD ["python", "/opt/subscriber.py"]

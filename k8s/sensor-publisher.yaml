@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: publisher-script
+data:
+  publisher.py: |
+    import paho.mqtt.client as mqtt
+    import os
+    import json
+    import random
+    import time
+    import socket
+
+    BROKER_HOST = os.getenv("BROKER_HOST", "localhost")
+    BROKER_PORT = int(os.getenv("BROKER_PORT", 1883))
+
+    client = mqtt.Client()
+    client.connect(BROKER_HOST, BROKER_PORT, 60)
+    print(f"Connected to {BROKER_HOST}:{BROKER_PORT}")
+
+    while True:
+        data = {
+            "device": socket.gethostname(),
+            "temperature": round(random.uniform(20, 35), 2),
+            "humidity": round(random.uniform(40, 80), 2),
+            "timestamp": time.time()
+        }
+        client.publish("sensor/data", json.dumps(data))
+        print(f"Sent: {data}")
+        time.sleep(5)
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sensor-publisher
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sensor
+  template:
+    metadata:
+      labels:
+        app: sensor
+    spec:
+      containers:
+      - name: publisher
+        image: python:3.9-slim
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            pip install --no-cache-dir paho-mqtt redis && \
+            python /opt/publisher.py
+        env:
+        - name: BROKER_HOST
+          value: "113.44.43.161"
+        - name: BROKER_PORT
+          value: "1883"
+        volumeMounts:
+        - name: script
+          mountPath: /opt
+      volumes:
+      - name: script
+        configMap:
+          name: publisher-script
