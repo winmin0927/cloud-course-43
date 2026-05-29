@@ -1,0 +1,48 @@
+apiVersion: kubeflow.org/v2beta1
+kind: MPIJob
+metadata:
+  name: mpi-matmul
+  namespace: default
+spec:
+  slotsPerWorker: 2
+  runPolicy:
+    cleanPodPolicy: None
+  mpiReplicaSpecs:
+    Launcher:
+      replicas: 1
+      template:
+        spec:
+          containers:
+          - name: launcher
+            image: swr.cn-east-3.myhuaweicloud.com/team43/mpi4py:latest
+            command:
+            - mpirun
+            - -n
+            - "4"
+            - python
+            - /opt/mpi/matmul_mpi.py
+            volumeMounts:
+            - name: code
+              mountPath: /opt/mpi
+          volumes:                 
+          - name: code
+            configMap:
+              name: matrix-mul-code
+    Worker:
+      replicas: 2
+      template:
+        spec:
+          containers:
+          - name: worker
+            image: swr.cn-east-3.myhuaweicloud.com/team43/mpi4py:latest
+            volumeMounts:
+            - name: code
+              mountPath: /opt/mpi
+            resources:
+              requests:
+                cpu: "1"
+                memory: "1Gi"
+          volumes:                 
+          - name: code
+            configMap:
+              name: matrix-mul-code
